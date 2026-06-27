@@ -352,14 +352,43 @@ export class SakanaWebClientBrowser {
             const abortController = new AbortController();
             (globalThis as any)[abortName] = () => abortController.abort();
 
-            try {
-              // Send message to existing conversation (no create needed)
+             try {
+              let activeMessageId = systemMessageId;
+
+              // Pre-flight check: if this is a follow-up turn (isContinue is true),
+              // fetch the latest conversation state first to get the correct leaf/parent ID.
+              if (isContinue) {
+                try {
+                  const convRes = await fetch(
+                    `https://chat.sakana.ai/api/v2/conversations/${conversationId}`,
+                  );
+                  if (convRes.ok) {
+                    const convData = await convRes.json();
+                    const data = convData.json || convData;
+                    if (data.messages && Array.isArray(data.messages) && data.messages.length > 0) {
+                      const lastMsg = data.messages[data.messages.length - 1];
+                      if (lastMsg?.id) activeMessageId = lastMsg.id;
+                    } else if (data.rootMessage) {
+                      let node = data.rootMessage;
+                      while (node.children && node.children.length > 0) {
+                        node = node.children[node.children.length - 1];
+                      }
+                      if (node.id) activeMessageId = node.id;
+                    }
+                    console.log(`[Sakana Web Browser] Resolved pre-flight leaf ID: ${activeMessageId}`);
+                  }
+                } catch (err) {
+                  console.error("[Sakana Web Browser] Pre-flight GET v2 conversations failed:", err);
+                }
+              }
+
+              // Send message to existing conversation
               const formData = new FormData();
               formData.append(
                 "data",
                 JSON.stringify({
                   inputs: message,
-                  id: systemMessageId,
+                  id: activeMessageId,
                   is_retry: false,
                   is_continue: false,
                   enableThinking,
@@ -452,16 +481,17 @@ export class SakanaWebClientBrowser {
                 );
                 if (convRes.ok) {
                   const convData = await convRes.json();
+                  const data = convData.json || convData;
                   // Try multiple possible response shapes for the message tree
-                  if (convData.messages && Array.isArray(convData.messages)) {
+                  if (data.messages && Array.isArray(data.messages) && data.messages.length > 0) {
                     // Flat array — last message is the leaf
-                    const lastMsg = convData.messages[convData.messages.length - 1];
+                    const lastMsg = data.messages[data.messages.length - 1];
                     if (lastMsg?.id) leafId = lastMsg.id;
                   }
                   // Try tree-based structure
-                  if (!leafId && convData.rootMessage) {
+                  if (!leafId && data.rootMessage) {
                     // Walk the tree to find the leaf
-                    let node = convData.rootMessage;
+                    let node = data.rootMessage;
                     while (node.children && node.children.length > 0) {
                       node = node.children[node.children.length - 1];
                     }
@@ -469,21 +499,21 @@ export class SakanaWebClientBrowser {
                   }
                   // Try direct fields
                   if (!leafId) {
-                    leafId = convData.lastMessageId || convData.leafMessageId || null;
+                    leafId = data.lastMessageId || data.leafMessageId || null;
                   }
                   if (leafId) {
                     await emit("metadata", JSON.stringify({ systemMessageId: leafId }));
                   }
                 }
-              } catch {
-                // Non-fatal — cursor just won't update via this path
+              } catch (err: any) {
+                console.error("[Sakana Web Browser] GET v2 conversations failed:", err);
               }
 
               // Step B: Call /compact to finalize the conversation tree
               // This is what makes follow-up messages visible in the Sakana Chat Web UI
               if (leafId) {
                 try {
-                  await fetch(
+                  const compactRes = await fetch(
                     `https://chat.sakana.ai/conversation/${conversationId}/compact`,
                     {
                       method: "POST",
@@ -491,8 +521,13 @@ export class SakanaWebClientBrowser {
                       body: JSON.stringify({ leafMessageId: leafId }),
                     },
                   );
-                } catch {
-                  // Non-fatal — Web UI visibility may be affected but API still works
+                  if (!compactRes.ok) {
+                    console.error(`[Sakana Web Browser] Compact failed with status: ${compactRes.status} ${compactRes.statusText}`);
+                  } else {
+                    console.log(`[Sakana Web Browser] Compact succeeded for leaf: ${leafId}`);
+                  }
+                } catch (err: any) {
+                  console.error("[Sakana Web Browser] Compact call failed:", err);
                 }
               }
 
