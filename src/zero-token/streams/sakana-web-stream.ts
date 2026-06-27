@@ -31,14 +31,14 @@ export function createSakanaWebStreamFn(cookieOrJson: string): StreamFn {
 
         const messages = context.messages || [];
 
-        // Build prompt based on conversation state
+        // Build prompt — send full history so Sakana model has context
         let prompt = "";
         const lastUserMessage = [...messages].toReversed().find((m) => m.role === "user");
 
         if (messages.length <= 1 && lastUserMessage) {
           prompt = typeof lastUserMessage.content === "string" ? lastUserMessage.content : "";
         } else {
-          // Format full history
+          // Format full history for context continuity
           prompt = messages
             .map((m) => {
               const role = m.role === "user" ? "User" : "Assistant";
