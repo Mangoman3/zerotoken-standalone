@@ -649,6 +649,24 @@ export function buildSakanaWebProvider(_params?: {
         contextWindow: SAKANA_WEB_DEFAULT_CONTEXT_WINDOW,
         maxTokens: SAKANA_WEB_DEFAULT_MAX_TOKENS,
       },
+      {
+        id: "fugu",
+        name: "Fugu (Web)",
+        reasoning: false,
+        input: ["text"],
+        cost: SAKANA_WEB_DEFAULT_COST,
+        contextWindow: SAKANA_WEB_DEFAULT_CONTEXT_WINDOW,
+        maxTokens: SAKANA_WEB_DEFAULT_MAX_TOKENS,
+      },
+      {
+        id: "fugu-thinking",
+        name: "Fugu Reasoning (Web)",
+        reasoning: true,
+        input: ["text"],
+        cost: SAKANA_WEB_DEFAULT_COST,
+        contextWindow: SAKANA_WEB_DEFAULT_CONTEXT_WINDOW,
+        maxTokens: SAKANA_WEB_DEFAULT_MAX_TOKENS,
+      },
     ],
   };
 }

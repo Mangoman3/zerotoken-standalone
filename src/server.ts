@@ -13,9 +13,10 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const REQUEST_BODY_LIMIT = process.env.REQUEST_BODY_LIMIT || "10mb";
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
 
 // Logger middleware
 app.use((req, res, next) => {
@@ -67,6 +68,20 @@ app.get("/v1/models", async (req, res) => {
 // POST /v1/chat/completions
 app.post("/v1/chat/completions", async (req, res) => {
   const { model: modelName, messages, stream = false, tools } = req.body;
+  const abortController = new AbortController();
+  let responseFinished = false;
+
+  const abortRequest = () => {
+    if (!responseFinished && !abortController.signal.aborted) {
+      abortController.abort();
+    }
+  };
+
+  req.on("aborted", abortRequest);
+  res.on("finish", () => {
+    responseFinished = true;
+  });
+  res.on("close", abortRequest);
 
   if (!modelName) {
     return res.status(400).json({
@@ -156,7 +171,7 @@ app.post("/v1/chat/completions", async (req, res) => {
 
     // Execute the stream
     const eventStream = await streamFn(modelConfig, contextConfig, {
-      signal: (req as any).signal,
+      signal: abortController.signal,
     });
 
     if (stream) {

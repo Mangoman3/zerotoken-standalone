@@ -106,7 +106,7 @@ export async function getSharedBrowser(providerLabel: string, targetUrl: string)
 
     sharedContext = await chromium.launchPersistentContext(userDataDir, {
       executablePath: executablePath || undefined,
-      headless: false,
+      headless: browserConfig.headless,
       args: [
         "--no-first-run",
         "--no-default-browser-check",

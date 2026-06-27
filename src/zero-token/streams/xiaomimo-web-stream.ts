@@ -466,6 +466,7 @@ export function createXiaomiMimoWebStreamFn(cookieOrJson: string): StreamFn {
           },
         } as unknown as never);
       } finally {
+        await (client as unknown as { close?: () => Promise<void> | void }).close?.();
         stream.end();
       }
     };

@@ -727,6 +727,7 @@ export function createDeepseekWebStreamFn(cookieOrJson: string): StreamFn {
           },
         } as AssistantMessageEvent);
       } finally {
+        await (client as unknown as { close?: () => Promise<void> | void }).close?.();
         stream.end();
       }
     };

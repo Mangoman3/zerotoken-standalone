@@ -54,7 +54,7 @@ export function createSakanaWebStreamFn(cookieOrJson: string): StreamFn {
 
         console.log(`[SakanaWebStream] Sending prompt length: ${prompt.length}`);
 
-        const enableThinking = model.id === "namazu-thinking";
+        const enableThinking = model.id.includes("thinking");
 
         const responseStream = await withRetry(
           () =>
@@ -148,12 +148,16 @@ export function createSakanaWebStreamFn(cookieOrJson: string): StreamFn {
           const checkTags = () => {
             const planStart = tagBuffer.match(/<plan\b[^<>]*>/i);
             const planEnd = tagBuffer.match(/<\/plan\b[^<>]*>/i);
+            const thinkStart = tagBuffer.match(/<think\b[^<>]*>/i);
+            const thinkEnd = tagBuffer.match(/<\/think\b[^<>]*>/i);
             const answerStart = tagBuffer.match(/<answer\b[^<>]*>/i);
             const answerEnd = tagBuffer.match(/<\/answer\b[^<>]*>/i);
 
             const indices = [
               { type: "plan_start", idx: planStart?.index ?? -1, len: planStart?.[0].length ?? 0 },
               { type: "plan_end", idx: planEnd?.index ?? -1, len: planEnd?.[0].length ?? 0 },
+              { type: "think_start", idx: thinkStart?.index ?? -1, len: thinkStart?.[0].length ?? 0 },
+              { type: "think_end", idx: thinkEnd?.index ?? -1, len: thinkEnd?.[0].length ?? 0 },
               { type: "answer_start", idx: answerStart?.index ?? -1, len: answerStart?.[0].length ?? 0 },
               { type: "answer_end", idx: answerEnd?.index ?? -1, len: answerEnd?.[0].length ?? 0 },
             ]
@@ -169,9 +173,9 @@ export function createSakanaWebStreamFn(cookieOrJson: string): StreamFn {
                 emitDelta(type, before);
               }
 
-              if (first.type === "plan_start") {
+              if (first.type === "plan_start" || first.type === "think_start") {
                 currentMode = "thinking";
-              } else if (first.type === "plan_end" || first.type === "answer_start") {
+              } else if (first.type === "plan_end" || first.type === "think_end" || first.type === "answer_start") {
                 currentMode = "text";
               } else if (first.type === "answer_end") {
                 currentMode = "text";
@@ -291,6 +295,7 @@ export function createSakanaWebStreamFn(cookieOrJson: string): StreamFn {
           },
         } as any);
       } finally {
+        await (client as unknown as { close?: () => Promise<void> | void }).close?.();
         stream.end();
       }
     };

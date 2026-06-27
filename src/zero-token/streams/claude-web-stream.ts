@@ -502,6 +502,7 @@ export function createClaudeWebStreamFn(cookieOrJson: string): StreamFn {
           },
         } as any);
       } finally {
+        await (client as unknown as { close?: () => Promise<void> | void }).close?.();
         stream.end();
       }
     };

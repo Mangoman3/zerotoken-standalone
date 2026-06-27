@@ -72,6 +72,8 @@ const STATIC_MODEL_MAPPING: Record<string, string> = {
   // Sakana
   "namazu": "sakana-web",
   "namazu-thinking": "sakana-web",
+  "fugu": "sakana-web",
+  "fugu-thinking": "sakana-web",
 };
 
 let providersCache: Record<string, { api: string; models: ModelDefinitionConfig[] }> | null = null;

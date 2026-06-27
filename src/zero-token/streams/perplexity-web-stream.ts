@@ -196,6 +196,7 @@ export function createPerplexityWebStreamFn(cookieOrJson: string): StreamFn {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any);
       } finally {
+        await (client as unknown as { close?: () => Promise<void> | void }).close?.();
         stream.end();
       }
     };
